@@ -1,17 +1,18 @@
 // SPDX-License-Identifier:MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.26;
 
 import {ERC20Burnable, ERC20} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 /**
- *@title StableCoin
- *@author Akash Arora
- *Collateral: Exogenous(wETH and wBTC)
- *Minting: Algorthmic
- *Relative Stability: Pegged to USD
+ * @title StableCoin
+ * @author Akash Arora
+ * Collateral: Exogenous(wETH and wBTC)
+ * Minting: Algorthmic
+ * Relative Stability: Pegged to USD
  *
- *This contract is governed by Coin Engine.It is the implementaion of ERC-20 standard for stable coin system
+ * This contract is governed by Coin Engine.It is the implementaion of ERC-20 standard for stable coin system
  */
+
 contract StableCoin is ERC20Burnable, Ownable {
     error StableCoin__ZeroAddress();
     error StableCoin__ZeroAmount();
@@ -21,7 +22,7 @@ contract StableCoin is ERC20Burnable, Ownable {
 
     function burn(uint256 _amount) public override onlyOwner {
         uint256 balance = balanceOf(msg.sender);
-        if (_amount <= 0) {
+        if (_amount == 0) {
             revert StableCoin__ZeroAmount();
         }
         if (_amount > balance) {
@@ -30,10 +31,7 @@ contract StableCoin is ERC20Burnable, Ownable {
         super.burn(_amount);
     }
 
-    function mint(
-        address _to,
-        uint256 _amount
-    ) external onlyOwner returns (bool) {
+    function mint(address _to, uint256 _amount) external onlyOwner returns (bool) {
         if (_to == address(0)) {
             revert StableCoin__ZeroAddress();
         }
