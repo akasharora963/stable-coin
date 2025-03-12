@@ -21,11 +21,7 @@ interface ISCEngine {
      * @param collateral The amount of the token to deposit as collateral
      * @param mintAmount  The amount of tokens to mint
      */
-    function depositCollateralAndMintDsc(
-        address token,
-        uint256 collateral,
-        uint256 mintAmount
-    ) external;
+    function depositCollateralAndMintDsc(address token, uint256 collateral, uint256 mintAmount) external;
 
     function redeemCollateralForDsc() external;
 
