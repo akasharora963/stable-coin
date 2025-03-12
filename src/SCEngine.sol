@@ -29,7 +29,7 @@ import {StableCoin} from "src/StableCoin.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 /*
  * @title SCEngine
  * @author Akash Arora
@@ -56,13 +56,21 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                            STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
+    uint256 private constant PRICE_FEED_PRECISION = 1e10;
+    uint256 private constant ETH_PRECISION = 1e18;
+    uint256 private constant LIQUIDATION_THRESHOLD = 50; //200% overcollateralization
+    uint256 private constant LIQUIDATION_THRESHOLD_PRECISION = 1e2;
+    uint256 private constant MIN_HEALTH_FACTOR = 1; //200% overcollateralization
+
     mapping(address token => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
+    mapping(address user => uint256 scMinted) private s_scMinted;
     StableCoin private immutable i_stableCoin;
-
+    address[] private s_collateralTokens;
     /*//////////////////////////////////////////////////////////////
                            EVENTS
     //////////////////////////////////////////////////////////////*/
+
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
 
     /*//////////////////////////////////////////////////////////////
@@ -91,6 +99,7 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
         uint256 _length = tokens.length;
         for (uint256 i = 0; i < _length; i++) {
             s_priceFeeds[tokens[i]] = priceFeeds[i];
+            s_collateralTokens.push(tokens[i]);
         }
         i_stableCoin = StableCoin(stableCoin);
     }
@@ -121,7 +130,19 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
 
     function redeemCollateral() external {}
 
-    function mintDsc() external {}
+    /**
+     * @dev Mints `amount` of DSC
+     * @param amountToMint The amount of DSC to mint
+     * @notice theremust be enough collateral to cover the DSC that is being greater than the thresshold value
+     */
+    function mintDsc(uint256 amountToMint) external moreThanZero(amountToMint) nonReentrant {
+        s_scMinted[msg.sender] += amountToMint;
+        _revertIfHealthFactorTooLow(msg.sender);
+        bool minted = i_stableCoin.mint(msg.sender, amountToMint);
+        if (!minted) {
+            revert SCEngine__MintFailed();
+        }
+    }
 
     function burnDsc() external {}
 
@@ -141,5 +162,84 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
         (bool success, bytes memory data) =
             token.call(abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         PRIVATE AND INTERNAL VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    function _getUserAccountInfo(address user)
+        internal
+        view
+        returns (uint256 totalScMinted, uint256 collateralValueInUsd)
+    {
+        totalScMinted = s_scMinted[user];
+        collateralValueInUsd = getAccountCollateralValueInUsd(user);
+    }
+
+    function _healthFactor(address user) internal view returns (uint256) {
+        (uint256 totalScMinted, uint256 collateralValueInUsd) = _getUserAccountInfo(user);
+        return _calculateHealthFactor(totalScMinted, collateralValueInUsd);
+    }
+
+    function _calculateHealthFactor(uint256 totalScMinted, uint256 collateralValueInUsd)
+        internal
+        pure
+        returns (uint256)
+    {
+        if (totalScMinted == 0) return type(uint256).max;
+        uint256 collateralThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_THRESHOLD_PRECISION;
+        //False Case
+        // $150 ETH / 100 SC = 1.5
+        // 150*50= 7500/100 = 75, 75/100 < 1
+
+        //True Case
+        // $1000 ETH / 100 SC
+        // 1000*50= 50000/100 = 500, 500/100 > 1
+        return (collateralThreshold * ETH_PRECISION) / totalScMinted;
+    }
+
+    function _revertIfHealthFactorTooLow(address user) internal view {
+        uint256 userHealthFactor = _healthFactor(user);
+        if (userHealthFactor < MIN_HEALTH_FACTOR) {
+            revert SCEngine__BreaksHealthFactor(userHealthFactor);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         PUBLIC AND EXTERNAL VIEw FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    function getAccountCollateralValueInUsd(address user) public view returns (uint256 totalCollateralValue) {
+        uint256 _length = s_collateralTokens.length;
+        for (uint256 i = 0; i < _length; i++) {
+            address token = s_collateralTokens[i];
+            uint256 amount = s_collateralDeposited[user][token];
+            totalCollateralValue += getPriceInUsd(token, amount);
+        }
+    }
+
+    function getPriceInUsd(address token, uint256 amount) public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
+        (, int256 price,,,) = priceFeed.latestRoundData();
+        // 1 ETH = 1000 USD
+        // The returned value from Chainlink will be 1000 * 1e8
+        // Most USD pairs have 8 decimals, so we will just pretend they all do
+        // We want to have everything in terms of WEI, so we add 10 zeros at the end
+        return (uint256(price) * PRICE_FEED_PRECISION * amount) / ETH_PRECISION;
+    }
+
+    function calculateHealthFactor(uint256 totalScMinted, uint256 collateralValueInUsd)
+        external
+        pure
+        returns (uint256)
+    {
+        return _calculateHealthFactor(totalScMinted, collateralValueInUsd);
+    }
+
+    function getAccountInformation(address user)
+        external
+        view
+        returns (uint256 totalScMinted, uint256 collateralValueInUsd)
+    {
+        return _getUserAccountInfo(user);
     }
 }

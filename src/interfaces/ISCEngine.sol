@@ -8,6 +8,9 @@ interface ISCEngine {
     error SCEngine__ZeroAmount();
     error SCEngine__InvalidLength();
     error SCEngine__NotAllowedToken();
+    error SCEngine__BreaksHealthFactor(uint256 userHealthFactor);
+    error SCEngine__MintFailed();
+
     /*//////////////////////////////////////////////////////////////
                            FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -25,7 +28,12 @@ interface ISCEngine {
 
     function redeemCollateral() external;
 
-    function mintDsc() external;
+    /**
+     * @dev Mints `amount` of DSC
+     * @param amountToMint The amount of DSC to mint
+     * @notice theremust be enough collateral to cover the DSC that is being greater than the thresshold value
+     */
+    function mintDsc(uint256 amountToMint) external;
 
     function burnDsc() external;
 
