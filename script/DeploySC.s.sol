@@ -13,23 +13,14 @@ contract DeploySC is Script {
     function run() external returns (StableCoin, SCEngine, HelperConfig) {
         HelperConfig helperConfig = new HelperConfig(); // This comes with our mocks!
 
-        (
-            address wethUsdPriceFeed,
-            address wbtcUsdPriceFeed,
-            address weth,
-            address wbtc,
-            address deployer
-        ) = helperConfig.activeNetworkConfig();
+        (address wethUsdPriceFeed, address wbtcUsdPriceFeed, address weth, address wbtc, address deployer) =
+            helperConfig.activeNetworkConfig();
         tokenAddresses = [weth, wbtc];
         priceFeedAddresses = [wethUsdPriceFeed, wbtcUsdPriceFeed];
 
         vm.startBroadcast(deployer);
         StableCoin sc = new StableCoin();
-        SCEngine scEngine = new SCEngine(
-            tokenAddresses,
-            priceFeedAddresses,
-            address(sc)
-        );
+        SCEngine scEngine = new SCEngine(tokenAddresses, priceFeedAddresses, address(sc));
         sc.transferOwnership(address(scEngine));
         vm.stopBroadcast();
         return (sc, scEngine, helperConfig);
