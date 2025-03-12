@@ -15,25 +15,21 @@ interface ISCEngine {
                            FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function depositCollateralAndMintDsc() external;
-
     /**
-     * @dev Deposits `amount` of `token` to the contract
+     * @dev Deposits `amount` of `token` to the contract and mint stable coin in one transaction
      * @param token The address of the token to deposit
-     * @param amount The amount of the token to deposit
+     * @param collateral The amount of the token to deposit as collateral
+     * @param mintAmount  The amount of tokens to mint
      */
-    function depositCollateral(address token, uint256 amount) external;
+    function depositCollateralAndMintDsc(
+        address token,
+        uint256 collateral,
+        uint256 mintAmount
+    ) external;
 
     function redeemCollateralForDsc() external;
 
     function redeemCollateral() external;
-
-    /**
-     * @dev Mints `amount` of DSC
-     * @param amountToMint The amount of DSC to mint
-     * @notice theremust be enough collateral to cover the DSC that is being greater than the thresshold value
-     */
-    function mintDsc(uint256 amountToMint) external;
 
     function burnDsc() external;
 
