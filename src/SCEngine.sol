@@ -61,6 +61,7 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
     uint256 private constant LIQUIDATION_THRESHOLD = 50; //200% overcollateralization
     uint256 private constant LIQUIDATION_THRESHOLD_PRECISION = 1e2;
     uint256 private constant MIN_HEALTH_FACTOR = 1; //200% overcollateralization
+    uint256 private constant LIQUIDATION_BONUS = 10;
 
     mapping(address token => address priceFeed) private s_priceFeeds;
     mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
@@ -186,7 +187,39 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
         _burnDsc(amountToBurn);
     }
 
-    function liquidate() external {}
+    /**
+     * @param collateral: The ERC20 token address of the collateral you're using to make the protocol solvent again.
+     * This is collateral that you're going to take from the user who is insolvent.
+     * In return, you have to burn your DSC to pay off their debt, but you don't pay off your own.
+     * @param user: The user who is insolvent. They have to have a _healthFactor below MIN_HEALTH_FACTOR
+     * @param debtToCover: The amount of DSC you want to burn to cover the user's debt.
+     *
+     * @notice: You can partially liquidate a user.
+     * @notice: You will get a LIQUIDATION_BONUS for taking the users funds.
+     * @notice: This function working assumes that the protocol will be roughly 200% overcollateralized in order for this
+     * to work.
+     * @notice: A known bug would be if the protocol was only 100% collateralized, we wouldn't be able to liquidate
+     * anyone.
+     * For example, if the price of the collateral plummeted before anyone could be liquidated.
+     */
+    function liquidate(address collateral, address user, uint256 debtToCover)
+        external
+        moreThanZero(debtToCover)
+        nonReentrant
+    {
+        uint256 startingUserHealthFactor = _healthFactor(user);
+        if (startingUserHealthFactor >= MIN_HEALTH_FACTOR) {
+            revert SCEngine__HealthFactorOk();
+        }
+        // If covering 100 DSC, we need to $100 of collateral
+        uint256 tokenAmountFromDebtCovered = getTokenAmountFromUsd(collateral, debtToCover);
+
+        // And give them a 10% bonus
+        // So we are giving the liquidator $110 of WETH for 100 DSC
+        // We should implement a feature to liquidate in the event the protocol is insolvent
+        // And sweep extra amounts into a treasury
+        uint256 bonusCollateral = (tokenAmountFromDebtCovered * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
+    }
 
     function getHealthFactor() external view returns (uint256) {}
 
@@ -246,7 +279,7 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
      * @dev redeem the amount of collateral token by giving the stable coin back
      * @param token The address of the token to redeem
      * @param amount The amount of the token that deposited as collateral
-     * @notice there must be enough collateral to maintain the health factor > 1.
+     * @notice there must be enough collateral to maintain the health factor > MIN_HEALTH_FACTOR.
      */
     function _redeemCollateral(address token, uint256 collateral) private {
         s_collateralDeposited[msg.sender][token] -= collateral;
@@ -343,5 +376,15 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
         returns (uint256 totalScMinted, uint256 collateralValueInUsd)
     {
         return _getUserAccountInfo(user);
+    }
+
+    function getTokenAmountFromUsd(address token, uint256 usdAmountInWei) public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
+        (, int256 price,,,) = priceFeed.staleCheckLatestRoundData();
+        // $100e18 USD Debt
+        // 1 ETH = 2000 USD
+        // The returned value from Chainlink will be 2000 * 1e8
+        // Most USD pairs have 8 decimals, so we will just pretend they all do
+        return ((usdAmountInWei * ETH_PRECISION) / (uint256(price) * PRICE_FEED_PRECISION));
     }
 }

@@ -57,7 +57,15 @@ interface ISCEngine {
      */
     function burnDsc(uint256 amountToBurn) external;
 
-    function liquidate() external;
+    /**
+     * @param collateral: The ERC20 token address of the collateral you're using to make the protocol solvent again.
+     * This is collateral that you're going to take from the user who is insolvent.
+     * In return, you have to burn your DSC to pay off their debt, but you don't pay off your own.
+     * @param user: The user who is insolvent. They have to have a _healthFactor below MIN_HEALTH_FACTOR
+     * @param debtToCover: The amount of DSC you want to burn to cover the user's debt.
+     *
+     */
+    function liquidate(address collateral, address user, uint256 debtToCover) external;
 
     function getHealthFactor() external view returns (uint256);
 }
