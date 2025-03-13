@@ -73,6 +73,8 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
 
     event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
 
+    event CollateralRedeemed(address indexed user, address indexed token, uint256 indexed amount);
+
     /*//////////////////////////////////////////////////////////////
                            MODIFIERS
     //////////////////////////////////////////////////////////////*/
@@ -113,46 +115,76 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
      * @param collateral The amount of the token to deposit as collateral
      * @param mintAmount  The amount of tokens to mint
      */
-    function depositCollateralAndMintDsc(address token, uint256 collateral, uint256 mintAmount) external {
-        depositCollateral(token, collateral);
-        mintDsc(mintAmount);
+    function depositCollateralAndMintDsc(address token, uint256 collateral, uint256 mintAmount)
+        external
+        moreThanZero(collateral)
+        moreThanZero(mintAmount)
+        isAllowedToken(token)
+        nonReentrant
+    {
+        _depositCollateral(token, collateral);
+        _mintDsc(mintAmount);
     }
 
     /**
      * @dev Deposits `amount` of `token` to the contract
      * @param token The address of the token to deposit
-     * @param amount The amount of the token to deposit
+     * @param collateral The amount of the token to deposit
      */
-    function depositCollateral(address token, uint256 amount)
-        public
-        moreThanZero(amount)
+    function depositCollateral(address token, uint256 collateral)
+        external
+        moreThanZero(collateral)
         isAllowedToken(token)
         nonReentrant
     {
-        s_collateralDeposited[msg.sender][token] += amount;
-        emit CollateralDeposited(msg.sender, token, amount);
-        _safeTransferFrom(token, msg.sender, address(this), amount);
+        _depositCollateral(token, collateral);
     }
-
-    function redeemCollateralForDsc() external {}
-
-    function redeemCollateral() external {}
 
     /**
-     * @dev Mints `amount` of DSC
-     * @param amountToMint The amount of DSC to mint
-     * @notice theremust be enough collateral to cover the DSC that is being greater than the thresshold value
+     * @dev Mints `amount` of stable coin
+     * @param amountToMint The amount of stable coin to mint
      */
-    function mintDsc(uint256 amountToMint) public moreThanZero(amountToMint) nonReentrant {
-        s_scMinted[msg.sender] += amountToMint;
-        _revertIfHealthFactorTooLow(msg.sender);
-        bool minted = i_stableCoin.mint(msg.sender, amountToMint);
-        if (!minted) {
-            revert SCEngine__MintFailed();
-        }
+    function mintDsc(uint256 amountToMint) external moreThanZero(amountToMint) nonReentrant {
+        _mintDsc(amountToMint);
     }
 
-    function burnDsc() external {}
+    /**
+     * @dev Redeems `amount` of `token` from the contract and burn stable coin in one transaction
+     * @param token The address of the token to redeem
+     * @param collateral The amount of the token that deposited as collateral
+     * @param burnAmount  The amount of tokens to burn
+     */
+    function redeemCollateralForDsc(address token, uint256 collateral, uint256 burnAmount)
+        external
+        moreThanZero(collateral)
+        nonReentrant
+        isAllowedToken(token)
+    {
+        _burnDsc(burnAmount);
+        _redeemCollateral(token, collateral);
+    }
+
+    /**
+     * @dev redeem the amount of collateral token by giving the stable coin back
+     * @param token The address of the token to redeem
+     * @param collateral The amount of the token that deposited as collateral
+     */
+    function redeemCollateral(address token, uint256 collateral)
+        external
+        moreThanZero(collateral)
+        nonReentrant
+        isAllowedToken(token)
+    {
+        _redeemCollateral(token, collateral);
+    }
+
+    /**
+     * @dev Burns `amount` of stable coin
+     * @param amountToBurn The amount of stable coin to burn
+     */
+    function burnDsc(uint256 amountToBurn) external moreThanZero(amountToBurn) nonReentrant {
+        _burnDsc(amountToBurn);
+    }
 
     function liquidate() external {}
 
@@ -170,6 +202,68 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
         (bool success, bytes memory data) =
             token.call(abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))));
+    }
+
+    /**
+     * @dev Transfer `value` amount of `token` from the calling contract to `to`. If `token` returns no value,
+     * non-reverting calls are assumed to be successful.
+     */
+    function _safeTransfer(address token, address to, uint256 value) internal {
+        require(token.code.length > 0);
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.transfer.selector, to, value));
+        require(success && (data.length == 0 || abi.decode(data, (bool))));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          PRIVATE FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /**
+     * @dev Deposits `amount` of `token` to the contract
+     * @param token The address of the token to deposit
+     * @param amount The amount of the token to deposit
+     */
+    function _depositCollateral(address token, uint256 amount) private {
+        s_collateralDeposited[msg.sender][token] += amount;
+        emit CollateralDeposited(msg.sender, token, amount);
+        _safeTransferFrom(token, msg.sender, address(this), amount);
+    }
+
+    /**
+     * @dev Mints `amount` of stable coin
+     * @param amountToMint The amount of stable coin  to mint
+     * @notice there must be enough collateral to cover the stable coin that is being greater than the thresshold value
+     */
+    function _mintDsc(uint256 amountToMint) private {
+        s_scMinted[msg.sender] += amountToMint;
+        _revertIfHealthFactorTooLow(msg.sender);
+        bool minted = i_stableCoin.mint(msg.sender, amountToMint);
+        if (!minted) {
+            revert SCEngine__MintFailed();
+        }
+    }
+
+    /**
+     * @dev redeem the amount of collateral token by giving the stable coin back
+     * @param token The address of the token to redeem
+     * @param amount The amount of the token that deposited as collateral
+     * @notice there must be enough collateral to maintain the health factor > 1.
+     */
+    function _redeemCollateral(address token, uint256 collateral) private {
+        s_collateralDeposited[msg.sender][token] -= collateral;
+        emit CollateralRedeemed(msg.sender, token, collateral);
+        _safeTransfer(token, msg.sender, collateral);
+        _revertIfHealthFactorTooLow(msg.sender);
+    }
+
+    /**
+     * @dev Burn `amount` of stable coin
+     * @param amountToBurn The amount of stable coin to burn
+     * @notice the stable coin transfer from user to contract and then burn mechanism take place
+     */
+    function _burnDsc(uint256 amountToBurn) private {
+        s_scMinted[msg.sender] -= amountToBurn;
+        _safeTransferFrom(address(i_stableCoin), msg.sender, address(this), amountToBurn);
+        i_stableCoin.burn(amountToBurn);
     }
 
     /*//////////////////////////////////////////////////////////////
