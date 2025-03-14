@@ -16,18 +16,35 @@ contract SCEngineTest is Test {
     HelperConfig helperConfig;
 
     address wethUsdPriceFeed;
+    address wbtcUsdPriceFeed;
     address weth;
-
+    address wbtc;
     address public USER = makeAddr("user");
 
     uint256 public constant START_BALANCE = 10 ether;
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
 
+    address[] public tokens;
+    address[] public priceFeeds;
+
     function setUp() external {
         deployer = new DeploySC();
         (sc, scEngine, helperConfig) = deployer.run();
-        (wethUsdPriceFeed,, weth,,) = helperConfig.activeNetworkConfig();
+        (wethUsdPriceFeed, wbtcUsdPriceFeed, weth, wbtc, ) = helperConfig
+            .activeNetworkConfig();
         ERC20Mock(weth).mint(USER, START_BALANCE);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         CONSTRUCTOR TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function testRevertsIfTokenLengthMismatchPriceFeeds() public {
+        tokens.push(weth);
+        priceFeeds.push(wbtcUsdPriceFeed);
+        priceFeeds.push(wethUsdPriceFeed);
+        vm.expectRevert(ISCEngine.SCEngine__InvalidLength.selector);
+        new SCEngine(tokens, priceFeeds, address(sc));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -41,6 +58,16 @@ contract SCEngineTest is Test {
         assertEq(expectedWethPrice, actualWethPrice);
     }
 
+    function testGetTokenAmountFromUsd() public view {
+        uint256 wethAmount = 100 ether;
+        uint256 expectedWethPrice = 0.05 ether; //100 ether / 2000$
+        uint256 actualWethPrice = scEngine.getTokenAmountFromUsd(
+            weth,
+            wethAmount
+        );
+        assertEq(expectedWethPrice, actualWethPrice);
+    }
+
     /*//////////////////////////////////////////////////////////////
                            DEPOSIT COLLATERAL TESTS
     //////////////////////////////////////////////////////////////*/
@@ -51,6 +78,14 @@ contract SCEngineTest is Test {
         ERC20Mock(weth).approve(USER, AMOUNT_COLLATERAL);
         vm.expectRevert(ISCEngine.SCEngine__ZeroAmount.selector);
         scEngine.depositCollateral(weth, wethAmount);
+        vm.stopPrank();
+    }
+
+    function testRevertsWithUnapprovedCollateral() public {
+        ERC20Mock randToken = new ERC20Mock();
+        vm.startPrank(USER);
+        vm.expectRevert(ISCEngine.SCEngine__NotAllowedToken.selector);
+        scEngine.depositCollateral(address(randToken), AMOUNT_COLLATERAL);
         vm.stopPrank();
     }
 }
