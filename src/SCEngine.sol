@@ -221,8 +221,6 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
         uint256 bonusCollateral = (tokenAmountFromDebtCovered * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
     }
 
-    function getHealthFactor() external view returns (uint256) {}
-
     /*//////////////////////////////////////////////////////////////
                           INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -386,5 +384,45 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
         // The returned value from Chainlink will be 2000 * 1e8
         // Most USD pairs have 8 decimals, so we will just pretend they all do
         return ((usdAmountInWei * ETH_PRECISION) / (uint256(price) * PRICE_FEED_PRECISION));
+    }
+
+    function getPrecision() external pure returns (uint256) {
+        return ETH_PRECISION;
+    }
+
+    function getPriceFeedPrecision() external pure returns (uint256) {
+        return PRICE_FEED_PRECISION;
+    }
+
+    function getLiquidationThreshold() external pure returns (uint256) {
+        return LIQUIDATION_THRESHOLD;
+    }
+
+    function getLiquidationBonus() external pure returns (uint256) {
+        return LIQUIDATION_BONUS;
+    }
+
+    function getLiquidationPrecision() external pure returns (uint256) {
+        return LIQUIDATION_PRECISION;
+    }
+
+    function getMinHealthFactor() external pure returns (uint256) {
+        return MIN_HEALTH_FACTOR;
+    }
+
+    function getCollateralTokens() external view returns (address[] memory) {
+        return s_collateralTokens;
+    }
+
+    function getStableCoin() external view returns (address) {
+        return address(i_stableCoin);
+    }
+
+    function getCollateralTokenPriceFeed(address token) external view returns (address) {
+        return s_priceFeeds[token];
+    }
+
+    function getHealthFactor(address user) external view returns (uint256) {
+        return _healthFactor(user);
     }
 }
