@@ -72,6 +72,14 @@ contract SCEngineTest is Test {
                            DEPOSIT COLLATERAL TESTS
     //////////////////////////////////////////////////////////////*/
 
+    modifier depositCollateral() {
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(scEngine), AMOUNT_COLLATERAL);
+        scEngine.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+        _;
+    }
+
     function testRevertIfCollateralZero() public {
         uint256 wethAmount = 0;
         vm.startPrank(USER);
@@ -87,5 +95,21 @@ contract SCEngineTest is Test {
         vm.expectRevert(ISCEngine.SCEngine__NotAllowedToken.selector);
         scEngine.depositCollateral(address(randToken), AMOUNT_COLLATERAL);
         vm.stopPrank();
+    }
+
+    function testCanDepositCollateralAndGetAccountInfo()
+        public
+        depositCollateral
+    {
+        (uint256 totalDscMinted, uint256 collateralValueInUsd) = scEngine
+            .getAccountInformation(USER);
+        uint256 expectedTotalDscMinted = 0;
+        uint256 expectedCollateralValue = scEngine.getTokenAmountFromUsd(
+            weth,
+            collateralValueInUsd
+        );
+
+        assertEq(expectedTotalDscMinted, totalDscMinted);
+        assertEq(expectedCollateralValue, AMOUNT_COLLATERAL);
     }
 }
