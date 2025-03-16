@@ -33,6 +33,7 @@ contract Handler is Test {
         vm.stopPrank();
     }
 
+    // @bug[FAIL: panic: arithmetic underflow or overflow (0x11)]
     function redeemCollateral(uint256 collateralSeed, uint256 collateral) public {
         ERC20Mock token = _getCollateral(collateralSeed);
         uint256 maxRedeemPossible = scEngine.getCollateralBalanceOfUser(address(token), msg.sender);
