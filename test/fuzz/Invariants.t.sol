@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {StdInvariant} from "forge-std/StdInvariant.sol";
 import {DeploySC} from "script/DeploySC.s.sol";
 import {StableCoin} from "src/StableCoin.sol";
@@ -45,6 +45,9 @@ contract Invariants is StdInvariant, Test {
         uint256 wethUsd = scEngine.getPriceInUsd(weth, totalWethDeposited);
         uint256 wbtcUsd = scEngine.getPriceInUsd(wbtc, totalWbtcDeposited);
         uint256 totalValueDeposited = wethUsd + wbtcUsd;
+
+        console.log("totalSupply", totalSupply);
+        console.log("totalValueDeposited", totalValueDeposited);
         assert(totalSupply <= totalValueDeposited);
     }
 }
