@@ -9,17 +9,19 @@ import {SCEngine} from "src/SCEngine.sol";
 import {ISCEngine} from "src/interfaces/ISCEngine.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
+import {Handler} from "./Handler.t.sol";
 //Invarianta aka properties that the system must maintain
 
 // 1. Health factor > MIN_HEALTH_FACTOR
 // 2. Totalsupply of stable coin should be less than total value of collateral
 // 3. Getter view functions should never revert
-contract OpenInvariantTest is StdInvariant, Test {
+contract Invariants is StdInvariant, Test {
     DeploySC deployer;
     StableCoin sc;
     SCEngine scEngine;
     HelperConfig helperConfig;
+
+    Handler handler;
 
     address wethUsdPriceFeed;
     address wbtcUsdPriceFeed;
@@ -30,10 +32,13 @@ contract OpenInvariantTest is StdInvariant, Test {
         deployer = new DeploySC();
         (sc, scEngine, helperConfig) = deployer.run();
         (wethUsdPriceFeed, wbtcUsdPriceFeed, weth, wbtc,) = helperConfig.activeNetworkConfig();
-        targetContract(address(scEngine));
+
+        //targetContract(address(scEngine));
+        handler = new Handler(sc, scEngine);
+        targetContract(address(handler));
     }
 
-    function invariant_OpenTest_protocolMustHaveMoreValueThanTotalSupply() public view {
+    function invariant_protocolMustHaveMoreValueThanTotalSupply() public view {
         uint256 totalSupply = sc.totalSupply();
         uint256 totalWethDeposited = IERC20(weth).balanceOf(address(scEngine));
         uint256 totalWbtcDeposited = IERC20(wbtc).balanceOf(address(scEngine));

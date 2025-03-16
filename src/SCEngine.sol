@@ -193,20 +193,16 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
     }
 
     /**
+     * @notice You can partially liquidate a user.
+     * @notice You will get a LIQUIDATION_BONUS for taking the user's funds.
+     * @notice This function assumes that the protocol will be roughly 200% overcollateralized for proper liquidation.
+     * @notice A known issue is if the protocol is only 100% collateralized, liquidation may not be possible.
+     * For example, if the price of the collateral plummets before anyone can be liquidated.
      *
-     * @param collateral: The ERC20 token address of the collateral you're using to make the protocol solvent again.
-     * This is collateral that you're going to take from the user who is insolvent.
-     * In return, you have to burn your DSC to pay off their debt, but you don't pay off your own.
-     * @param user: The user who is insolvent. They have to have a _healthFactor below MIN_HEALTH_FACTOR
-     * @param debtToCover: The amount of DSC you want to burn to cover the user's debt.
-     *
-     * @dev: You can partially liquidate a user.
-     * @dev: You will get a LIQUIDATION_BONUS for taking the users funds.
-     * @dev: This function working assumes that the protocol will be roughly 200% overcollateralized in order for this
-     * to work.
-     * @dev: A known bug would be if the protocol was only 100% collateralized, we wouldn't be able to liquidate
-     * anyone.
-     * For example, if the price of the collateral plummeted before anyone could be liquidated.
+     * @param collateral The ERC20 token address of the collateral used to restore protocol solvency.
+     * This collateral will be taken from the insolvent user.
+     * @param user The insolvent user with a `_healthFactor` below `MIN_HEALTH_FACTOR`.
+     * @param debtToCover The amount of DSC to be burned to cover the user's debt.
      */
     function liquidate(address collateral, address user, uint256 debtToCover)
         external
