@@ -50,4 +50,27 @@ contract Invariants is StdInvariant, Test {
         console.log("totalValueDeposited", totalValueDeposited);
         assert(totalSupply <= totalValueDeposited);
     }
+
+    function invariant_getterFunctionsShouldNotRevert() public view {
+        uint256 amount = 1 ether;
+        scEngine.getHealthFactor(msg.sender);
+        scEngine.getCollateralBalanceOfUser(weth, address(scEngine));
+        scEngine.getCollateralBalanceOfUser(wbtc, address(scEngine));
+        scEngine.getCollateralTokenPriceFeed(weth);
+        scEngine.getCollateralTokenPriceFeed(wbtc);
+        scEngine.getAccountInformation(msg.sender);
+        scEngine.getAccountCollateralValueInUsd(msg.sender);
+        scEngine.getCollateralTokens();
+        scEngine.getLiquidationBonus();
+        scEngine.getLiquidationPrecision();
+        scEngine.getLiquidationThreshold();
+        scEngine.getMinHealthFactor();
+        scEngine.getPrecision();
+        scEngine.getPriceFeedPrecision();
+        scEngine.getPriceInUsd(weth, amount);
+        scEngine.getPriceInUsd(wbtc, amount);
+        scEngine.getStableCoin();
+        scEngine.getTokenAmountFromUsd(weth, amount);
+        scEngine.getTokenAmountFromUsd(wbtc, amount);
+    }
 }
