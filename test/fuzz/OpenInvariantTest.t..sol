@@ -29,8 +29,7 @@ contract OpenInvariantTest is StdInvariant, Test {
     function setUp() external {
         deployer = new DeploySC();
         (sc, scEngine, helperConfig) = deployer.run();
-        (wethUsdPriceFeed, wbtcUsdPriceFeed, weth, wbtc, ) = helperConfig
-            .activeNetworkConfig();
+        (wethUsdPriceFeed, wbtcUsdPriceFeed, weth, wbtc,) = helperConfig.activeNetworkConfig();
         targetContract(address(scEngine));
     }
 

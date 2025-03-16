@@ -64,8 +64,7 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
     uint256 private constant LIQUIDATION_BONUS = 10;
 
     mapping(address token => address priceFeed) private s_priceFeeds;
-    mapping(address user => mapping(address token => uint256 amount))
-        private s_collateralDeposited;
+    mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
     mapping(address user => uint256 scMinted) private s_scMinted;
     StableCoin private immutable i_stableCoin;
     address[] private s_collateralTokens;
@@ -73,17 +72,10 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
                            EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event CollateralDeposited(
-        address indexed user,
-        address indexed token,
-        uint256 indexed amount
-    );
+    event CollateralDeposited(address indexed user, address indexed token, uint256 indexed amount);
 
     event CollateralRedeemed(
-        address indexed redeemedFrom,
-        address indexed redeemedTo,
-        address indexed token,
-        uint256 amount
+        address indexed redeemedFrom, address indexed redeemedTo, address indexed token, uint256 amount
     );
 
     /*//////////////////////////////////////////////////////////////
@@ -105,11 +97,7 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
                            FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    constructor(
-        address[] memory tokens,
-        address[] memory priceFeeds,
-        address stableCoin
-    ) {
+    constructor(address[] memory tokens, address[] memory priceFeeds, address stableCoin) {
         if (tokens.length != priceFeeds.length) {
             revert SCEngine__InvalidLength();
         }
@@ -130,11 +118,7 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
      * @param collateral The amount of the token to deposit as collateral
      * @param mintAmount  The amount of tokens to mint
      */
-    function depositCollateralAndMintDsc(
-        address token,
-        uint256 collateral,
-        uint256 mintAmount
-    )
+    function depositCollateralAndMintDsc(address token, uint256 collateral, uint256 mintAmount)
         external
         moreThanZero(collateral)
         moreThanZero(mintAmount)
@@ -150,10 +134,12 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
      * @param token The address of the token to deposit
      * @param collateral The amount of the token to deposit
      */
-    function depositCollateral(
-        address token,
-        uint256 collateral
-    ) external moreThanZero(collateral) isAllowedToken(token) nonReentrant {
+    function depositCollateral(address token, uint256 collateral)
+        external
+        moreThanZero(collateral)
+        isAllowedToken(token)
+        nonReentrant
+    {
         _depositCollateral(token, collateral);
     }
 
@@ -161,9 +147,7 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
      * @dev Mints `amount` of stable coin
      * @param amountToMint The amount of stable coin to mint
      */
-    function mintDsc(
-        uint256 amountToMint
-    ) external moreThanZero(amountToMint) nonReentrant {
+    function mintDsc(uint256 amountToMint) external moreThanZero(amountToMint) nonReentrant {
         _mintDsc(amountToMint);
     }
 
@@ -173,11 +157,12 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
      * @param collateral The amount of the token that deposited as collateral
      * @param burnAmount  The amount of tokens to burn
      */
-    function redeemCollateralForDsc(
-        address token,
-        uint256 collateral,
-        uint256 burnAmount
-    ) external moreThanZero(collateral) nonReentrant isAllowedToken(token) {
+    function redeemCollateralForDsc(address token, uint256 collateral, uint256 burnAmount)
+        external
+        moreThanZero(collateral)
+        nonReentrant
+        isAllowedToken(token)
+    {
         _burnDsc(burnAmount, msg.sender, msg.sender);
         _redeemCollateral(token, collateral, msg.sender, msg.sender);
         _revertIfHealthFactorTooLow(msg.sender);
@@ -188,10 +173,12 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
      * @param token The address of the token to redeem
      * @param collateral The amount of the token that deposited as collateral
      */
-    function redeemCollateral(
-        address token,
-        uint256 collateral
-    ) external moreThanZero(collateral) nonReentrant isAllowedToken(token) {
+    function redeemCollateral(address token, uint256 collateral)
+        external
+        moreThanZero(collateral)
+        nonReentrant
+        isAllowedToken(token)
+    {
         _redeemCollateral(token, collateral, msg.sender, msg.sender);
         _revertIfHealthFactorTooLow(msg.sender);
     }
@@ -200,14 +187,13 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
      * @dev Burns `amount` of stable coin
      * @param amountToBurn The amount of stable coin to burn
      */
-    function burnDsc(
-        uint256 amountToBurn
-    ) external moreThanZero(amountToBurn) nonReentrant {
+    function burnDsc(uint256 amountToBurn) external moreThanZero(amountToBurn) nonReentrant {
         _burnDsc(amountToBurn, msg.sender, msg.sender);
         _revertIfHealthFactorTooLow(msg.sender);
     }
 
-    /**************************************************************
+    /**
+     *
      * @param collateral: The ERC20 token address of the collateral you're using to make the protocol solvent again.
      * This is collateral that you're going to take from the user who is insolvent.
      * In return, you have to burn your DSC to pay off their debt, but you don't pay off your own.
@@ -222,36 +208,27 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
      * anyone.
      * For example, if the price of the collateral plummeted before anyone could be liquidated.
      */
-    function liquidate(
-        address collateral,
-        address user,
-        uint256 debtToCover
-    ) external moreThanZero(debtToCover) nonReentrant {
+    function liquidate(address collateral, address user, uint256 debtToCover)
+        external
+        moreThanZero(debtToCover)
+        nonReentrant
+    {
         uint256 startingUserHealthFactor = _healthFactor(user);
         if (startingUserHealthFactor >= MIN_HEALTH_FACTOR) {
             revert SCEngine__HealthFactorOk();
         }
         // If covering 100 DSC, we need to $100 of collateral
-        uint256 tokenAmountFromDebtCovered = getTokenAmountFromUsd(
-            collateral,
-            debtToCover
-        );
+        uint256 tokenAmountFromDebtCovered = getTokenAmountFromUsd(collateral, debtToCover);
 
         // And give them a 10% bonus
         // So we are giving the liquidator $110 of WETH for 100 DSC
         // We should implement a feature to liquidate in the event the protocol is insolvent
         // And sweep extra amounts into a treasury
-        uint256 bonusCollateral = (tokenAmountFromDebtCovered *
-            LIQUIDATION_BONUS) / LIQUIDATION_THRESHOLD_PRECISION;
+        uint256 bonusCollateral = (tokenAmountFromDebtCovered * LIQUIDATION_BONUS) / LIQUIDATION_THRESHOLD_PRECISION;
 
         // Burn DSC equal to debtToCover
         // Figure out how much collateral to recover based on how much burnt
-        _redeemCollateral(
-            collateral,
-            tokenAmountFromDebtCovered + bonusCollateral,
-            user,
-            msg.sender
-        );
+        _redeemCollateral(collateral, tokenAmountFromDebtCovered + bonusCollateral, user, msg.sender);
 
         _burnDsc(debtToCover, user, msg.sender);
 
@@ -270,21 +247,10 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
      * @dev Transfer `value` amount of `token` from `from` to `to`, spending the approval given by `from` to the
      * calling contract. If `token` returns no value, non-reverting calls are assumed to be successful.
      */
-    function _safeTransferFrom(
-        address token,
-        address from,
-        address to,
-        uint256 value
-    ) internal {
+    function _safeTransferFrom(address token, address from, address to, uint256 value) internal {
         require(token.code.length > 0);
-        (bool success, bytes memory data) = token.call(
-            abi.encodeWithSelector(
-                IERC20.transferFrom.selector,
-                from,
-                to,
-                value
-            )
-        );
+        (bool success, bytes memory data) =
+            token.call(abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))));
     }
 
@@ -294,9 +260,7 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
      */
     function _safeTransfer(address token, address to, uint256 value) internal {
         require(token.code.length > 0);
-        (bool success, bytes memory data) = token.call(
-            abi.encodeWithSelector(IERC20.transfer.selector, to, value)
-        );
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.transfer.selector, to, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))));
     }
 
@@ -336,12 +300,7 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
      * @param to The address of the user that receives the stable coin
      * @notice there must be enough collateral to maintain the health factor > MIN_HEALTH_FACTOR.
      */
-    function _redeemCollateral(
-        address token,
-        uint256 collateral,
-        address from,
-        address to
-    ) private {
+    function _redeemCollateral(address token, uint256 collateral, address from, address to) private {
         s_collateralDeposited[from][token] -= collateral;
         emit CollateralRedeemed(from, to, token, collateral);
         _safeTransfer(token, to, collateral);
@@ -354,27 +313,16 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
      * @param dscFrom The address of the user that provides the stable coin
      * @notice the stable coin transfer from user to contract and then burn mechanism take place
      */
-    function _burnDsc(
-        uint256 amountToBurn,
-        address onBehalfOf,
-        address dscFrom
-    ) private {
+    function _burnDsc(uint256 amountToBurn, address onBehalfOf, address dscFrom) private {
         s_scMinted[onBehalfOf] -= amountToBurn;
-        _safeTransferFrom(
-            address(i_stableCoin),
-            dscFrom,
-            address(this),
-            amountToBurn
-        );
+        _safeTransferFrom(address(i_stableCoin), dscFrom, address(this), amountToBurn);
         i_stableCoin.burn(amountToBurn);
     }
 
     /*//////////////////////////////////////////////////////////////
                          PRIVATE AND INTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    function _getUserAccountInfo(
-        address user
-    )
+    function _getUserAccountInfo(address user)
         internal
         view
         returns (uint256 totalScMinted, uint256 collateralValueInUsd)
@@ -384,20 +332,17 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
     }
 
     function _healthFactor(address user) internal view returns (uint256) {
-        (
-            uint256 totalScMinted,
-            uint256 collateralValueInUsd
-        ) = _getUserAccountInfo(user);
+        (uint256 totalScMinted, uint256 collateralValueInUsd) = _getUserAccountInfo(user);
         return _calculateHealthFactor(totalScMinted, collateralValueInUsd);
     }
 
-    function _calculateHealthFactor(
-        uint256 totalScMinted,
-        uint256 collateralValueInUsd
-    ) internal pure returns (uint256) {
+    function _calculateHealthFactor(uint256 totalScMinted, uint256 collateralValueInUsd)
+        internal
+        pure
+        returns (uint256)
+    {
         if (totalScMinted == 0) return type(uint256).max;
-        uint256 collateralThreshold = (collateralValueInUsd *
-            LIQUIDATION_THRESHOLD) / LIQUIDATION_THRESHOLD_PRECISION;
+        uint256 collateralThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_THRESHOLD_PRECISION;
         //False Case
         // $150 ETH / 100 SC = 1.5
         // 150*50= 7500/100 = 75, 75/100 < 1
@@ -418,9 +363,7 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                          PUBLIC AND EXTERNAL VIEw FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    function getAccountCollateralValueInUsd(
-        address user
-    ) public view returns (uint256 totalCollateralValue) {
+    function getAccountCollateralValueInUsd(address user) public view returns (uint256 totalCollateralValue) {
         uint256 _length = s_collateralTokens.length;
         for (uint256 i = 0; i < _length; i++) {
             address token = s_collateralTokens[i];
@@ -429,14 +372,9 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
         }
     }
 
-    function getPriceInUsd(
-        address token,
-        uint256 amount
-    ) public view returns (uint256) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(
-            s_priceFeeds[token]
-        );
-        (, int256 price, , , ) = priceFeed.latestRoundData();
+    function getPriceInUsd(address token, uint256 amount) public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
+        (, int256 price,,,) = priceFeed.latestRoundData();
         // 1 ETH = 1000 USD
         // The returned value from Chainlink will be 1000 * 1e8
         // Most USD pairs have 8 decimals, so we will just pretend they all do
@@ -444,16 +382,15 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
         return (uint256(price) * PRICE_FEED_PRECISION * amount) / ETH_PRECISION;
     }
 
-    function calculateHealthFactor(
-        uint256 totalScMinted,
-        uint256 collateralValueInUsd
-    ) external pure returns (uint256) {
+    function calculateHealthFactor(uint256 totalScMinted, uint256 collateralValueInUsd)
+        external
+        pure
+        returns (uint256)
+    {
         return _calculateHealthFactor(totalScMinted, collateralValueInUsd);
     }
 
-    function getAccountInformation(
-        address user
-    )
+    function getAccountInformation(address user)
         external
         view
         returns (uint256 totalScMinted, uint256 collateralValueInUsd)
@@ -461,20 +398,14 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
         return _getUserAccountInfo(user);
     }
 
-    function getTokenAmountFromUsd(
-        address token,
-        uint256 usdAmountInWei
-    ) public view returns (uint256) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(
-            s_priceFeeds[token]
-        );
-        (, int256 price, , , ) = priceFeed.latestRoundData();
+    function getTokenAmountFromUsd(address token, uint256 usdAmountInWei) public view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
+        (, int256 price,,,) = priceFeed.latestRoundData();
         // $100e18 USD Debt
         // 1 ETH = 2000 USD
         // The returned value from Chainlink will be 2000 * 1e8
         // Most USD pairs have 8 decimals, so we will just pretend they all do
-        return ((usdAmountInWei * ETH_PRECISION) /
-            (uint256(price) * PRICE_FEED_PRECISION));
+        return ((usdAmountInWei * ETH_PRECISION) / (uint256(price) * PRICE_FEED_PRECISION));
     }
 
     function getPrecision() external pure returns (uint256) {
@@ -509,9 +440,7 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
         return address(i_stableCoin);
     }
 
-    function getCollateralTokenPriceFeed(
-        address token
-    ) external view returns (address) {
+    function getCollateralTokenPriceFeed(address token) external view returns (address) {
         return s_priceFeeds[token];
     }
 

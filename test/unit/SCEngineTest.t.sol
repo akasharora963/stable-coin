@@ -30,8 +30,7 @@ contract SCEngineTest is Test {
     function setUp() external {
         deployer = new DeploySC();
         (sc, scEngine, helperConfig) = deployer.run();
-        (wethUsdPriceFeed, wbtcUsdPriceFeed, weth, wbtc, ) = helperConfig
-            .activeNetworkConfig();
+        (wethUsdPriceFeed, wbtcUsdPriceFeed, weth, wbtc,) = helperConfig.activeNetworkConfig();
         ERC20Mock(weth).mint(USER, START_BALANCE);
     }
 
@@ -61,10 +60,7 @@ contract SCEngineTest is Test {
     function testGetTokenAmountFromUsd() public view {
         uint256 wethAmount = 100 ether;
         uint256 expectedWethPrice = 0.05 ether; //100 ether / 2000$
-        uint256 actualWethPrice = scEngine.getTokenAmountFromUsd(
-            weth,
-            wethAmount
-        );
+        uint256 actualWethPrice = scEngine.getTokenAmountFromUsd(weth, wethAmount);
         assertEq(expectedWethPrice, actualWethPrice);
     }
 
@@ -97,17 +93,10 @@ contract SCEngineTest is Test {
         vm.stopPrank();
     }
 
-    function testCanDepositCollateralAndGetAccountInfo()
-        public
-        depositCollateral
-    {
-        (uint256 totalDscMinted, uint256 collateralValueInUsd) = scEngine
-            .getAccountInformation(USER);
+    function testCanDepositCollateralAndGetAccountInfo() public depositCollateral {
+        (uint256 totalDscMinted, uint256 collateralValueInUsd) = scEngine.getAccountInformation(USER);
         uint256 expectedTotalDscMinted = 0;
-        uint256 expectedCollateralValue = scEngine.getTokenAmountFromUsd(
-            weth,
-            collateralValueInUsd
-        );
+        uint256 expectedCollateralValue = scEngine.getTokenAmountFromUsd(weth, collateralValueInUsd);
 
         assertEq(expectedTotalDscMinted, totalDscMinted);
         assertEq(expectedCollateralValue, AMOUNT_COLLATERAL);

@@ -22,11 +22,7 @@ interface ISCEngine {
      * @param collateral The amount of the token to deposit as collateral
      * @param mintAmount  The amount of tokens to mint
      */
-    function depositCollateralAndMintDsc(
-        address token,
-        uint256 collateral,
-        uint256 mintAmount
-    ) external;
+    function depositCollateralAndMintDsc(address token, uint256 collateral, uint256 mintAmount) external;
 
     /**
      * @dev Deposits `amount` of `token` to the contract
@@ -47,11 +43,7 @@ interface ISCEngine {
      * @param collateral The amount of the token that deposited as collateral
      * @param burnAmount  The amount of tokens to burn
      */
-    function redeemCollateralForDsc(
-        address token,
-        uint256 collateral,
-        uint256 burnAmount
-    ) external;
+    function redeemCollateralForDsc(address token, uint256 collateral, uint256 burnAmount) external;
 
     /**
      * @dev redeem the amount of collateral token by giving the stable coin back
@@ -73,23 +65,17 @@ interface ISCEngine {
      * @param user: The user who is insolvent. They have to have a _healthFactor below MIN_HEALTH_FACTOR
      * @param debtToCover: The amount of DSC you want to burn to cover the user's debt.
      */
-    function liquidate(
-        address collateral,
-        address user,
-        uint256 debtToCover
-    ) external;
+    function liquidate(address collateral, address user, uint256 debtToCover) external;
     /*//////////////////////////////////////////////////////////////
                          EXTERNAL VIEw FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function calculateHealthFactor(
-        uint256 totalScMinted,
-        uint256 collateralValueInUsd
-    ) external pure returns (uint256);
+    function calculateHealthFactor(uint256 totalScMinted, uint256 collateralValueInUsd)
+        external
+        pure
+        returns (uint256);
 
-    function getAccountInformation(
-        address user
-    )
+    function getAccountInformation(address user)
         external
         view
         returns (uint256 totalScMinted, uint256 collateralValueInUsd);
@@ -110,9 +96,7 @@ interface ISCEngine {
 
     function getStableCoin() external view returns (address);
 
-    function getCollateralTokenPriceFeed(
-        address token
-    ) external view returns (address);
+    function getCollateralTokenPriceFeed(address token) external view returns (address);
 
     function getHealthFactor(address user) external view returns (uint256);
 }
