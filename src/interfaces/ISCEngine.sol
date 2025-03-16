@@ -98,5 +98,7 @@ interface ISCEngine {
 
     function getCollateralTokenPriceFeed(address token) external view returns (address);
 
+    function getCollateralBalanceOfUser(address token, address user) external view returns (uint256);
+
     function getHealthFactor(address user) external view returns (uint256);
 }

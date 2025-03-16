@@ -440,6 +440,10 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
         return s_priceFeeds[token];
     }
 
+    function getCollateralBalanceOfUser(address token, address user) external view returns (uint256) {
+        return s_collateralDeposited[user][token];
+    }
+
     function getHealthFactor(address user) external view returns (uint256) {
         return _healthFactor(user);
     }
