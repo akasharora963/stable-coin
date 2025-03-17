@@ -30,6 +30,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import {OracleLib} from "src/libraries/OracleLib.sol";
 /*
  * @title SCEngine
  * @author Akash Arora
@@ -52,10 +53,11 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interf
 
 contract SCEngine is ISCEngine, ReentrancyGuard {
     using SafeERC20 for IERC20;
-
+    using OracleLib for AggregatorV3Interface;
     /*//////////////////////////////////////////////////////////////
                            STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
+
     uint256 private constant PRICE_FEED_PRECISION = 1e10;
     uint256 private constant ETH_PRECISION = 1e18;
     uint256 private constant LIQUIDATION_THRESHOLD = 50; //200% overcollateralization
@@ -370,7 +372,7 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
 
     function getPriceInUsd(address token, uint256 amount) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (, int256 price,,,) = priceFeed.latestRoundData();
+        (, int256 price,,,) = priceFeed.staleCheckLatestRoundData();
         // 1 ETH = 1000 USD
         // The returned value from Chainlink will be 1000 * 1e8
         // Most USD pairs have 8 decimals, so we will just pretend they all do
@@ -396,7 +398,7 @@ contract SCEngine is ISCEngine, ReentrancyGuard {
 
     function getTokenAmountFromUsd(address token, uint256 usdAmountInWei) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
-        (, int256 price,,,) = priceFeed.latestRoundData();
+        (, int256 price,,,) = priceFeed.staleCheckLatestRoundData();
         // $100e18 USD Debt
         // 1 ETH = 2000 USD
         // The returned value from Chainlink will be 2000 * 1e8

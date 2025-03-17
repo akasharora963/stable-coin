@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {StableCoin} from "src/StableCoin.sol";
 import {SCEngine} from "src/SCEngine.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
+import {MockV3Aggregator} from "test/mocks/MockV3Aggregator.sol";
 
 contract Handler is Test {
     StableCoin sc;
@@ -12,6 +13,9 @@ contract Handler is Test {
 
     ERC20Mock weth;
     ERC20Mock wbtc;
+
+    MockV3Aggregator wethUsdPriceFeed;
+    MockV3Aggregator wbtcUsdPriceFeed;
 
     uint256 public constant MAX_DEPOSIT = type(uint96).max;
 
@@ -21,6 +25,13 @@ contract Handler is Test {
         address[] memory collateralTokens = scEngine.getCollateralTokens();
         weth = ERC20Mock(collateralTokens[0]);
         wbtc = ERC20Mock(collateralTokens[1]);
+
+        address _wethUsdPriceFeed = scEngine.getCollateralTokenPriceFeed(collateralTokens[0]);
+
+        address _wethBtcPriceFeed = scEngine.getCollateralTokenPriceFeed(collateralTokens[1]);
+
+        wethUsdPriceFeed = MockV3Aggregator(_wethUsdPriceFeed);
+        wbtcUsdPriceFeed = MockV3Aggregator(_wethBtcPriceFeed);
     }
 
     function mintDsc(uint256 amount) public {
@@ -62,6 +73,23 @@ contract Handler is Test {
         }
         scEngine.redeemCollateral(address(token), collateral);
     }
+
+    // function updateCollateralPrice(
+    //     uint128 newPrice,
+    //     uint256 collateralSeed
+    // ) public {
+    //     int256 intNewPrice = int256(uint256(newPrice));
+    //     //int256 intNewPrice = 0;
+    //     if (intNewPrice == 0) {
+    //         return;
+    //     }
+    //     ERC20Mock collateral = _getCollateral(collateralSeed);
+    //     MockV3Aggregator priceFeed = MockV3Aggregator(
+    //         scEngine.getCollateralTokenPriceFeed(address(collateral))
+    //     );
+
+    //     priceFeed.updateAnswer(intNewPrice);
+    // }
 
     function _getCollateral(uint256 seed) private view returns (ERC20Mock) {
         if (seed % 2 == 0) {
