@@ -1,5 +1,3 @@
-## Stable Coin Engine
-
 # Stable Coin Engine
 
 A decentralized stablecoin system utilizing exogenous collateral and algorithmic minting mechanisms to maintain a peg to the US Dollar.
